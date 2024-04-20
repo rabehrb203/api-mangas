@@ -59,7 +59,7 @@ app.get("/details/:link", async (req, res) => {
     mangaDetails.title = titleElement.text().trim();
 
     // Get alternative titles
-    const altTitlesElement = $(".alternative .desktop-titles");
+    const altTitlesElement = $(".titlemove .alternative");
     mangaDetails.alternativeTitles = altTitlesElement.text().trim();
 
     // Get type of work
