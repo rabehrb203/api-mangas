@@ -38,6 +38,70 @@ app.get("/mangas", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+app.get("/details/:link", async (req, res) => {
+  try {
+    const link = req.params.link;
+    const url = `https://mangatak.com/manga/${link}/`;
+
+    // جلب محتوى صفحة التفاصيل
+    const response = await axios.get(url);
+    const html = response.data;
+
+    // استخراج المعلومات باستخدام Cheerio
+    const $ = cheerio.load(html);
+
+    const mangaDetails = {};
+
+    // استخراج العنوان
+    // Get title
+    const titleElement = $(".entry-title");
+    mangaDetails.title = titleElement.text().trim();
+
+    // Get alternative titles
+    const altTitlesElement = $(".alternative .desktop-titles");
+    mangaDetails.alternativeTitles = altTitlesElement.text().trim();
+
+    // Get type of work
+    const typeOfWorkElement = $(".imptdt:nth-of-type(2) a");
+    mangaDetails.typeOfWork = typeOfWorkElement.text().trim();
+
+    // Get status
+    const statusElement = $(".imptdt:nth-of-type(1) i");
+    mangaDetails.status = statusElement.text().trim();
+
+    // Get release year
+    const releaseYearElement = $(".imptdt:nth-of-type(3) i");
+    mangaDetails.releaseYear = releaseYearElement.text().trim();
+
+    // Get publisher
+    const publisherElement = $(".imptdt:nth-of-type(5) i");
+    mangaDetails.publisher = publisherElement.text().trim();
+
+    // Get genres
+    mangaDetails.genres = [];
+    $(".wd-full .mgen a").each((index, element) => {
+      mangaDetails.genres.push($(element).text().trim());
+    });
+
+    // Get summary
+    const summaryElement = $(".wd-full .entry-content p");
+    mangaDetails.summary = summaryElement.text().trim();
+
+    // Get publishing date
+    const publishingDateElement = $(".imptdt:nth-of-type(7) time");
+    mangaDetails.publishingDate = publishingDateElement.text().trim();
+
+    // Get last update date
+    const lastUpdateElement = $(".imptdt:nth-of-type(8) time");
+    mangaDetails.lastUpdateDate = lastUpdateElement.text().trim();
+
+    res.json(mangaDetails);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 app.get("/chapters/:link", async (req, res) => {
   try {
     const link = req.params.link;
