@@ -38,6 +38,48 @@ app.get("/mangas", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+app.get("/chapters/:link", async (req, res) => {
+  try {
+    const link = req.params.link;
+    const url = `https://mangatak.com/manga/${link}/`;
+
+    // جلب محتوى صفحة الفصول
+    const response = await axios.get(url);
+    const html = response.data;
+
+    // استخراج المعلومات باستخدام Cheerio
+    const $ = cheerio.load(html);
+
+    const chaptersList = [];
+
+    // العثور على عناصر الفصول واستخراج المعلومات
+    $(".eplister ul li").each((index, element) => {
+      const chapterNum = $(element)
+        .find(".chapternum")
+        .text()
+        .trim()
+        .replace("الفصل\t\t\t\t\t\t\t", "");
+
+      const chapterLink = $(element)
+        .find("a")
+        .attr("href")
+        .substring(21)
+        .replace("/", "");
+      const chapterDate = $(element).find(".chapterdate").text().trim();
+
+      chaptersList.push({
+        chapterNum,
+        chapterDate,
+        chapterLink,
+      });
+    });
+
+    res.json(chaptersList);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 // عرض الصور باستخدام المسار /images/link
 app.get("/images/:link", async (req, res) => {
   try {
