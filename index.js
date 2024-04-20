@@ -1,19 +1,26 @@
-const puppeteer = require("puppeteer");
 const express = require("express");
+const puppeteer = require("puppeteer");
+
 const app = express();
+app.set("port", process.env.PORT || 5000);
 
-app.get("/", async (req, res) => {
- const browser = await puppeteer.launch({
-   args: ["--no-sandbox", "--disable-setuid-sandbox"],
- });
-  const page = await browser.newPage();
-  await page.goto("https://example.com");
-  const text = await page.$eval("h1", (el) => el.textContent);
-  res.send(text);
-
-  await browser.close();
+const browserP = puppeteer.launch({
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("starting....");
+app.get("/", (req, res) => {
+  // FIXME move to a worker task; see https://devcenter.heroku.com/articles/node-redis-workers
+  let page;
+  (async () => {
+    page = await (await browserP).newPage();
+    await page.setContent(`<p>web running at ${Date()}</p>`);
+    res.send(await page.content());
+  })()
+    .catch(err => res.sendStatus(500))
+    .finally(() => page.close())
+  ;
 });
+
+app.listen(app.get("port"), () => 
+  console.log("app running on port", app.get("port"))
+);
