@@ -1,7 +1,8 @@
 const puppeteer = require("puppeteer");
 const express = require("express");
 const app = express();
-
+const axios = require("axios");
+const cheerio = require("cheerio");
 app.get("/mangas", async (req, res) => {
   try {
     // استدعاء صفحة الويب المطلوبة باستخدام axios
