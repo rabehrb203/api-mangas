@@ -164,7 +164,7 @@ app.get("/images/:link", async (req, res) => {
       const images = Array.from(document.querySelectorAll('#readerarea img'));
       return images.map(img => {
         const src = img.getAttribute('src');
-        if (!src.includes('i.ibb.co/hfgDCBF/image.webp')) {
+        if (!src.includes('i.ibb.co/hfgDCBF/image.webp') || !src.includes('https://i.ibb.co/XDYBsX5/adawewt.jpg') ) {
           return src;
         }
       }).filter(Boolean);
