@@ -38,7 +38,6 @@ app.get("/mangas", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 app.get("/details/:link", async (req, res) => {
   try {
     const link = req.params.link;
@@ -152,27 +151,29 @@ app.get("/images/:link", async (req, res) => {
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
-    
+
     // تحميل الصفحة المطلوبة باستخدام المسار المُحدد
     await page.goto(`https://mangatak.com/${link}`);
-    
+
     // انتظار حتى يتم تحميل الصفحة بشكل كامل
-    await page.waitForSelector('#readerarea img');
-    
+    await page.waitForSelector("#readerarea img");
+
     // استخراج عناصر img داخل div readerarea
     const imageUrls = await page.evaluate(() => {
-      const images = Array.from(document.querySelectorAll('#readerarea img'));
-      return images.map(img => {
-        const src = img.getAttribute('src');
-        if (src.startsWith('https://mangatak.com/wp-content/')) {
-          // إذا كانت الصورة من الموقع الهدف، فأضفها إلى القائمة
-          return src;
-        }
-      }).filter(Boolean);
+      const images = Array.from(document.querySelectorAll("#readerarea img"));
+      return images
+        .map((img) => {
+          const src = img.getAttribute("src");
+          if (src.startsWith("https://mangatak.com/wp-content/")) {
+            // إذا كانت الصورة من الموقع الهدف، فأضفها إلى القائمة
+            return src;
+          }
+        })
+        .filter(Boolean);
     });
-    
+
     await browser.close();
-    
+
     // إرسال الروابط كاستجابة
     res.json(imageUrls);
   } catch (error) {
