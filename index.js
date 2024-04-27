@@ -184,6 +184,7 @@ app.get("/images/:link", async (req, res) => {
 });
 
 const server = app.listen(process.env.PORT || 3000, () => {
+  // تعيين قيمة timeout للخادم
   server.timeout = 1200000; // 60 ثانية
   console.log("Server is running....");
 });
