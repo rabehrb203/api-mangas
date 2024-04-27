@@ -3,6 +3,20 @@ const express = require("express");
 const app = express();
 const axios = require("axios");
 const cheerio = require("cheerio");
+const mongoose = require("mongoose"); // استيراد مكتبة Mongoose للتفاعل مع قاعدة البيانات
+mongoose.connect(
+  "mongodb+srv://<rabeh>:<rabeh123>@cluster0.eu1ozhy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+);
+const mangaSchema = new mongoose.Schema({
+  link: String,
+  image: String,
+});
+
+const Manga = mongoose.model("Manga", mangaSchema);
 app.get("/mangas", async (req, res) => {
   try {
     // استدعاء صفحة الويب المطلوبة باستخدام axios
@@ -147,35 +161,52 @@ app.get("/chapters/:link", async (req, res) => {
 app.get("/images/:link", async (req, res) => {
   try {
     const link = req.params.link;
-    const browser = await puppeteer.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
 
-    // تحميل الصفحة المطلوبة باستخدام المسار المُحدد
-    await page.goto(`https://mangatak.com/${link}`);
+    // التحقق من وجود الرابط في قاعدة البيانات
+    const manga = await Manga.findOne({ link: link });
+    if (manga) {
+      // إرسال الصورة مباشرة إذا كانت موجودة في قاعدة البيانات
+      res.json({ image: manga.image });
+    } else {
+      // إذا لم يتم العثور على الصورة في قاعدة البيانات، استخدم Puppeteer
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      });
+      const page = await browser.newPage();
 
-    // انتظار حتى يتم تحميل الصفحة بشكل كامل
-    await page.waitForSelector("#readerarea img");
+      // تحميل الصفحة المطلوبة باستخدام المسار المحدد
+      await page.goto(`https://mangatak.com/${link}`);
 
-    // استخراج عناصر img داخل div readerarea
-    const imageUrls = await page.evaluate(() => {
-      const images = Array.from(document.querySelectorAll("#readerarea img"));
-      return images
-        .map((img) => {
-          const src = img.getAttribute("src");
-          if (src.startsWith("https://mangatak.com/wp-content/")) {
-            // إذا كانت الصورة من الموقع الهدف، فأضفها إلى القائمة
-            return src;
-          }
-        })
-        .filter(Boolean);
-    });
+      // انتظار حتى يتم تحميل الصفحة بشكل كامل
+      await page.waitForSelector("#readerarea img");
 
-    await browser.close();
+      // استخراج عناصر img داخل div readerarea
+      const imageUrls = await page.evaluate(() => {
+        const images = Array.from(document.querySelectorAll("#readerarea img"));
+        return images
+          .map((img) => {
+            const src = img.getAttribute("src");
+            if (src.startsWith("https://mangatak.com/wp-content/")) {
+              // إذا كانت الصورة من الموقع الهدف، فأضفها إلى القائمة
+              return src;
+            }
+          })
+          .filter(Boolean);
+      });
 
-    // إرسال الروابط كاستجابة
-    res.json(imageUrls);
+      // إغلاق المتصفح بعد الانتهاء من العمل
+      await browser.close();
+
+      // حفظ الصورة في قاعدة البيانات
+      const newManga = new Manga({
+        link: link,
+        image: imageUrls[0], // يمكنك تغيير هذا حسب تنظيم البيانات الخاص بك
+      });
+      await newManga.save();
+
+      // إرسال الصورة كاستجابة
+      res.json({ image: imageUrls[0] });
+    }
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error", error);
