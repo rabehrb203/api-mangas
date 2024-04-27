@@ -4,7 +4,6 @@ const app = express();
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-const Manga = mongoose.model("Manga", mangaSchema);
 app.get("/mangas", async (req, res) => {
   try {
     // استدعاء صفحة الويب المطلوبة باستخدام axios
