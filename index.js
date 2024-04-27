@@ -154,7 +154,7 @@ app.get("/images/:link", async (req, res) => {
     const page = await browser.newPage();
 
     // تحميل الصفحة المطلوبة باستخدام المسار المُحدد
-    await page.goto(`https://mangatak.com/${link}`);
+    await page.waitForSelector("#readerarea img", { timeout: 30000 }); // تعيين فترة انتظار لا تتجاوز 30 ثانية
 
     // انتظار حتى يتم تحميل الصفحة بشكل كامل
     await page.waitForSelector("#readerarea img");
@@ -184,7 +184,7 @@ app.get("/images/:link", async (req, res) => {
 });
 
 const server = app.listen(process.env.PORT || 3000, () => {
-  // تعيين قيمة timeout للخادم
-  server.timeout = 1200000; // 60 ثانية
   console.log("Server is running....");
 });
+server.timeout = 600000; // 20 دقيقة
+
