@@ -1,1 +1,1 @@
-web: node index.js --timeout=60
+web: node index.js
