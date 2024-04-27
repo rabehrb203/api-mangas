@@ -7,7 +7,7 @@ const cheerio = require("cheerio");
 app.get("/mangas", async (req, res) => {
   try {
     // استدعاء صفحة الويب المطلوبة باستخدام axios
-    const response = await axios.get("https://mangatak.com/manga/?page=8");
+    const response = await axios.get("https://mangatak.com/manga/?page=2");
 
     // تحليل الصفحة باستخدام cheerio
     const $ = cheerio.load(response.data);
