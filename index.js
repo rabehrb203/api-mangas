@@ -5,7 +5,7 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const mongoose = require("mongoose"); // استيراد مكتبة Mongoose للتفاعل مع قاعدة البيانات
 mongoose.connect(
-  "mongodb+srv://<rabeh>:<rabeh123>@cluster0.eu1ozhy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+  "mongodb+srv://<rabehrb>:<rabehrb123>@cluster0.eu1ozhy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
   {
     useNewUrlParser: true,
     useUnifiedTopology: true,
