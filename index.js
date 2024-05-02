@@ -6,10 +6,8 @@ const cheerio = require("cheerio");
 
 app.get("/mangas", async (req, res) => {
   try {
-    // استدعاء صفحة الويب المطلوبة باستخدام axios
-    const response = await axios.get("https://mangatak.com/manga/?page=2");
+    const response = await axios.get("https://mangatak.com/manga/?page=8");
 
-    // تحليل الصفحة باستخدام cheerio
     const $ = cheerio.load(response.data);
     const dataList = [];
 
@@ -154,12 +152,14 @@ app.get("/images/:link", async (req, res) => {
     const page = await browser.newPage();
 
     // تحميل الصفحة المطلوبة باستخدام المسار المُحدد
-        await page.goto(`https://mangatak.com/${link}`, { timeout: 60000 });
- // تعيين فترة انتظار لا تتجاوز 30 ثانية
+    await page.goto(`https://mangatak.com/${link}`, { timeout: 60000 });
+
+    console.log(page.url);
 
     // انتظار حتى يتم تحميل الصفحة بشكل كامل
     await page.waitForSelector("#readerarea img");
 
+    console.log("waitForSelector skip");
     // استخراج عناصر img داخل div readerarea
     const imageUrls = await page.evaluate(() => {
       const images = Array.from(document.querySelectorAll("#readerarea img"));
@@ -168,6 +168,8 @@ app.get("/images/:link", async (req, res) => {
           const src = img.getAttribute("src");
           if (src.startsWith("https://mangatak.com/wp-content/")) {
             // إذا كانت الصورة من الموقع الهدف، فأضفها إلى القائمة
+            console.log("url : " + src);
+
             return src;
           }
         })
@@ -184,8 +186,6 @@ app.get("/images/:link", async (req, res) => {
   }
 });
 
-const server = app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT || 3000, () => {
   console.log("Server is running....");
 });
-server.timeout = 600000; // 20 دقيقة
-
