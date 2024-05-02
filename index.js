@@ -20,7 +20,7 @@ const fetchDataFromMangatak = async (url) => {
 
 // جلب البيانات لصفحة الصور
 const getImageUrls = async (page) => {
-  await page.waitForSelector("#readerarea img");
+  await page.waitForSelector("#readerarea img", { timeout: 60000 });
   return await page.$$eval("#readerarea img", (images) => {
     return images
       .map((img) => {
