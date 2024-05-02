@@ -1,17 +1,50 @@
 const puppeteer = require("puppeteer");
 const express = require("express");
-const app = express();
 const axios = require("axios");
 const cheerio = require("cheerio");
 
+const app = express();
+
+// إدارة المتصفح بشكل صحيح
+const launchBrowser = async () => {
+  return await puppeteer.launch({
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+};
+
+// جلب البيانات من Mangatak
+const fetchDataFromMangatak = async (url) => {
+  const response = await axios.get(url);
+  return cheerio.load(response.data);
+};
+
+// جلب البيانات لصفحة الصور
+const getImageUrls = async (page) => {
+  await page.waitForSelector("#readerarea img");
+  return await page.$$eval("#readerarea img", (images) => {
+    return images
+      .map((img) => {
+        const src = img.getAttribute("src");
+        if (src.startsWith("https://mangatak.com/wp-content/")) {
+          return src;
+        }
+      })
+      .filter(Boolean);
+  });
+};
+
+// تحسين إغلاق المتصفح
+const closeBrowser = async (browser) => {
+  if (browser) {
+    await browser.close();
+  }
+};
+
 app.get("/mangas", async (req, res) => {
   try {
-    const response = await axios.get("https://mangatak.com/manga/?page=8");
-
-    const $ = cheerio.load(response.data);
+    const $ = await fetchDataFromMangatak("https://mangatak.com/manga/?page=8");
     const dataList = [];
 
-    // استخراج البيانات من الصفحة
     $(".listupd .bs").each((index, element) => {
       const title = $(element)
         .find(".tt")
@@ -30,69 +63,34 @@ app.get("/mangas", async (req, res) => {
       dataList.push({ title, image, chapter, link });
     });
 
-    // إرسال البيانات كاستجابة
     res.json(dataList);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 app.get("/details/:link", async (req, res) => {
   try {
     const link = req.params.link;
     const url = `https://mangatak.com/manga/${link}/`;
-
-    // جلب محتوى صفحة التفاصيل
-    const response = await axios.get(url);
-    const html = response.data;
-
-    // استخراج المعلومات باستخدام Cheerio
-    const $ = cheerio.load(html);
+    const $ = await fetchDataFromMangatak(url);
 
     const mangaDetails = {};
 
-    // استخراج العنوان
-    // Get title
-    const titleElement = $(".entry-title");
-    mangaDetails.title = titleElement.text().trim();
-
-    // Get alternative titles
-    const altTitlesElement = $(".titlemove .alternative");
-    mangaDetails.alternativeTitles = altTitlesElement.text().trim();
-
-    // Get type of work
-    const typeOfWorkElement = $(".imptdt:nth-of-type(2) a");
-    mangaDetails.typeOfWork = typeOfWorkElement.text().trim();
-
-    // Get status
-    const statusElement = $(".imptdt:nth-of-type(1) i");
-    mangaDetails.status = statusElement.text().trim();
-
-    // Get release year
-    const releaseYearElement = $(".imptdt:nth-of-type(3) i");
-    mangaDetails.releaseYear = releaseYearElement.text().trim();
-
-    // Get publisher
-    const publisherElement = $(".imptdt:nth-of-type(5) i");
-    mangaDetails.publisher = publisherElement.text().trim();
-
-    // Get genres
+    mangaDetails.title = $(".entry-title").text().trim();
+    mangaDetails.alternativeTitles = $(".titlemove .alternative").text().trim();
+    mangaDetails.typeOfWork = $(".imptdt:nth-of-type(2) a").text().trim();
+    mangaDetails.status = $(".imptdt:nth-of-type(1) i").text().trim();
+    mangaDetails.releaseYear = $(".imptdt:nth-of-type(3) i").text().trim();
+    mangaDetails.publisher = $(".imptdt:nth-of-type(5) i").text().trim();
     mangaDetails.genres = [];
     $(".wd-full .mgen a").each((index, element) => {
       mangaDetails.genres.push($(element).text().trim());
     });
-
-    // Get summary
-    const summaryElement = $(".wd-full .entry-content p");
-    mangaDetails.summary = summaryElement.text().trim();
-
-    // Get publishing date
-    const publishingDateElement = $(".imptdt:nth-of-type(7) time");
-    mangaDetails.publishingDate = publishingDateElement.text().trim();
-
-    // Get last update date
-    const lastUpdateElement = $(".imptdt:nth-of-type(8) time");
-    mangaDetails.lastUpdateDate = lastUpdateElement.text().trim();
+    mangaDetails.summary = $(".wd-full .entry-content p").text().trim();
+    mangaDetails.publishingDate = $(".imptdt:nth-of-type(7) time").text().trim();
+    mangaDetails.lastUpdateDate = $(".imptdt:nth-of-type(8) time").text().trim();
 
     res.json(mangaDetails);
   } catch (error) {
@@ -100,21 +98,14 @@ app.get("/details/:link", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 app.get("/chapters/:link", async (req, res) => {
   try {
     const link = req.params.link;
     const url = `https://mangatak.com/manga/${link}/`;
-
-    // جلب محتوى صفحة الفصول
-    const response = await axios.get(url);
-    const html = response.data;
-
-    // استخراج المعلومات باستخدام Cheerio
-    const $ = cheerio.load(html);
-
+    const $ = await fetchDataFromMangatak(url);
     const chaptersList = [];
 
-    // العثور على عناصر الفصول واستخراج المعلومات
     $(".eplister ul li").each((index, element) => {
       const chapterNum = $(element)
         .find(".chapternum")
@@ -142,50 +133,27 @@ app.get("/chapters/:link", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-// عرض الصور باستخدام المسار /images/link
+
 app.get("/images/:link", async (req, res) => {
+  let browser;
   try {
     const link = req.params.link;
-    const browser = await puppeteer.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browser = await launchBrowser();
     const page = await browser.newPage();
 
-    // تحميل الصفحة المطلوبة باستخدام المسار المُحدد
     await page.goto(`https://mangatak.com/${link}`, { timeout: 60000 });
+    const imageUrls = await getImageUrls(page);
 
-    console.log(page.url);
-
-    // انتظار حتى يتم تحميل الصفحة بشكل كامل
-    await page.waitForSelector("#readerarea img");
-
-    console.log("waitForSelector skip");
-    // استخراج عناصر img داخل div readerarea
-    const imageUrls = await page.evaluate(() => {
-      const images = Array.from(document.querySelectorAll("#readerarea img"));
-      return images
-        .map((img) => {
-          const src = img.getAttribute("src");
-          if (src.startsWith("https://mangatak.com/wp-content/")) {
-            // إذا كانت الصورة من الموقع الهدف، فأضفها إلى القائمة
-            console.log("url : " + src);
-
-            return src;
-          }
-        })
-        .filter(Boolean);
-    });
-
-    await browser.close();
-
-    // إرسال الروابط كاستجابة
     res.json(imageUrls);
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).send("Internal Server Error", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    await closeBrowser(browser);
   }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server is running....");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
