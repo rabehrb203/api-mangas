@@ -42,7 +42,7 @@ const closeBrowser = async (browser) => {
 
 app.get("/mangas", async (req, res) => {
   try {
-    const $ = await fetchDataFromMangatak("https://mangatak.com/manga/?page=8");
+    const $ = await fetchDataFromMangatak("https://mangatak.com/manga/?page=2");
     const dataList = [];
 
     $(".listupd .bs").each((index, element) => {
