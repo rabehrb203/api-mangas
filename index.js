@@ -86,12 +86,17 @@ app.get("/details/:link", async (req, res) => {
         mangaDetails.genres.push($(element).text().trim());
       });
 
+      const translationTeamsElement = $(".section-3 .content").eq(3);
+    mangaDetails.translationTeams = translationTeamsElement.text().trim();
     // استخراج سنة الصدور
     const releaseYearElement = $(".section-3 .content").eq(4);
     mangaDetails.releaseYear = releaseYearElement.text().trim();
 
+    // استخراج فرق الترجمة
+  
 
-    mangaDetails.translationTeams = translationTeamsElement.text().trim();
+
+
 
     res.json(mangaDetails);
   } catch (error) {
