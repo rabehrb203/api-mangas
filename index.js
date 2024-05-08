@@ -122,6 +122,10 @@ app.get("/chapters/:link", async (req, res) => {
     // العثور على عناصر الفصول واستخراج المعلومات
     $(".tab-pane ul li").each((index, element) => {
       const chapterNum = $(element).find(".ch-num").text().trim();
+      const chapterNumElement = $(element).find("a").attr("href").split("/")[5];
+      const chapterNumMatch = chapterNumElement.match(/^\d+(?:-\d+)?$/);
+      const chapLink = chapterNumMatch ? chapterNumMatch[0] : null;
+
       const chapterLink = $(element).find("a").attr("href").split("/")[4];
       const chapterDate = $(element).find(".ch-post-time i").text().trim();
 
@@ -129,6 +133,7 @@ app.get("/chapters/:link", async (req, res) => {
         chapterNum,
         chapterDate,
         chapterLink,
+        chapLink,
       });
     });
 
