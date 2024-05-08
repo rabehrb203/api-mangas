@@ -1,96 +1,98 @@
 const puppeteer = require("puppeteer");
 const express = require("express");
+const app = express();
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-const app = express();
-
-// إدارة المتصفح بشكل صحيح
-const launchBrowser = async () => {
-  return await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-};
-
-// جلب البيانات من Mangatak
-const fetchDataFromMangatak = async (url) => {
-  const response = await axios.get(url);
-  return cheerio.load(response.data);
-};
-
-// جلب البيانات لصفحة الصور
-const getImageUrls = async (page) => {
-  await page.waitForSelector("#readerarea img", { timeout: 60000 });
-  return await page.$$eval("#readerarea img", (images) => {
-    return images
-      .map((img) => {
-        const src = img.getAttribute("src");
-        if (src.startsWith("https://mangatak.com/wp-content/")) {
-          return src;
-        }
-      })
-      .filter(Boolean);
-  });
-};
-
-// تحسين إغلاق المتصفح
-const closeBrowser = async (browser) => {
-  if (browser) {
-    await browser.close();
-  }
-};
-
 app.get("/mangas", async (req, res) => {
   try {
-    const $ = await fetchDataFromMangatak("https://mangatak.com/manga/?page=8");
-    const dataList = [];
+    let dataList = [];
+    let page = 1;
+    const lastPage = 3; // تحديد الصفحة الأخيرة التي تريد جلب البيانات منها
 
-    $(".listupd .bs").each((index, element) => {
-      const title = $(element)
-        .find(".tt")
-        .text()
-        .substring(5)
-        .replace("\t\t\t", "");
+    while (page <= lastPage) {
+      const response = await axios.get(
+        `https://rocks-manga.com/manga/page/${page}/`
+      );
+      const $ = cheerio.load(response.data);
 
-      const image = $(element).find(".ts-post-image").attr("src");
-      const link = $(element)
-        .find("a")
-        .attr("href")
-        .substring(27)
-        .replace("/", "");
-      const chapter = $(element).find(".epxs").text();
+      $(".page-content-listing .shido-manga ").each((index, element) => {
+        const title = $(element).find(".s-manga-title").text();
+        const image = $(element).find(".img-responsive").attr("src");
+        const link = $(element).find("a").attr("href").split("/")[4];
+        const chapter = $(element).find(".s-chapter span").eq(0).text();
 
-      dataList.push({ title, image, chapter, link });
-    });
+        dataList.push({ title, image, chapter, link });
+      });
 
+      // Increment page number
+      page++;
+    }
+
+    // Send the data as a response
     res.json(dataList);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 app.get("/details/:link", async (req, res) => {
   try {
     const link = req.params.link;
-    const url = `https://mangatak.com/manga/${link}/`;
-    const $ = await fetchDataFromMangatak(url);
+    const url = `https://rocks-manga.com/manga/${link}/`;
+
+    // جلب محتوى صفحة التفاصيل
+    const response = await axios.get(url);
+    const html = response.data;
+
+    // استخراج المعلومات باستخدام Cheerio
+    const $ = cheerio.load(html);
 
     const mangaDetails = {};
 
-    mangaDetails.title = $(".entry-title").text().trim();
-    mangaDetails.alternativeTitles = $(".titlemove .alternative").text().trim();
-    mangaDetails.typeOfWork = $(".imptdt:nth-of-type(2) a").text().trim();
-    mangaDetails.status = $(".imptdt:nth-of-type(1) i").text().trim();
-    mangaDetails.releaseYear = $(".imptdt:nth-of-type(3) i").text().trim();
-    mangaDetails.publisher = $(".imptdt:nth-of-type(5) i").text().trim();
+    // استخراج العنوان
+    const titleElement = $(".section-2 .title");
+    mangaDetails.title = titleElement.text().trim();
+
+    // استخراج الأسماء البديلة
+    const alternativeTitlesElement = $(".section-2 .other-name");
+    mangaDetails.alternativeTitles = alternativeTitlesElement.text().trim();
+
+    // استخراج حالة العمل
+    const statusElement = $(".section-2 .status");
+    mangaDetails.status = statusElement.text().trim();
+
+    // استخراج القصة
+    const storyElement = $(".section-2 .story p");
+    mangaDetails.story = storyElement.text().trim();
+
+    // استخراج النوع
+    const typeElement = $(".section-3 .content a").first();
+    mangaDetails.type = typeElement.text().trim();
+
+    // استخراج المؤلف
+    const authorElement = $(".section-3 .content a").eq(1);
+    mangaDetails.author = authorElement.text().trim();
+
+    // استخراج الرسام
+    const artistElement = $(".section-3 .content a").eq(2);
+    mangaDetails.artist = artistElement.text().trim();
+
+    // استخراج التصنيف
     mangaDetails.genres = [];
-    $(".wd-full .mgen a").each((index, element) => {
-      mangaDetails.genres.push($(element).text().trim());
-    });
-    mangaDetails.summary = $(".wd-full .entry-content p").text().trim();
-    mangaDetails.publishingDate = $(".imptdt:nth-of-type(7) time").text().trim();
-    mangaDetails.lastUpdateDate = $(".imptdt:nth-of-type(8) time").text().trim();
+    $(".section-3 .content a")
+      .slice(3)
+      .each((index, element) => {
+        mangaDetails.genres.push($(element).text().trim());
+      });
+
+    // استخراج سنة الصدور
+    const releaseYearElement = $(".section-3 .content").eq(3);
+    mangaDetails.releaseYear = releaseYearElement.text().trim();
+
+    // استخراج فرق الترجمة
+    const translationTeamsElement = $(".section-3 .content").eq(4);
+    mangaDetails.translationTeams = translationTeamsElement.text().trim();
 
     res.json(mangaDetails);
   } catch (error) {
@@ -102,23 +104,22 @@ app.get("/details/:link", async (req, res) => {
 app.get("/chapters/:link", async (req, res) => {
   try {
     const link = req.params.link;
-    const url = `https://mangatak.com/manga/${link}/`;
-    const $ = await fetchDataFromMangatak(url);
+    const url = `https://rocks-manga.com/manga/${link}/`;
+
+    // جلب محتوى صفحة الفصول
+    const response = await axios.get(url);
+    const html = response.data;
+
+    // استخراج المعلومات باستخدام Cheerio
+    const $ = cheerio.load(html);
+
     const chaptersList = [];
 
-    $(".eplister ul li").each((index, element) => {
-      const chapterNum = $(element)
-        .find(".chapternum")
-        .text()
-        .trim()
-        .replace("الفصل\t\t\t\t\t\t\t", "");
-
-      const chapterLink = $(element)
-        .find("a")
-        .attr("href")
-        .substring(21)
-        .replace("/", "");
-      const chapterDate = $(element).find(".chapterdate").text().trim();
+    // العثور على عناصر الفصول واستخراج المعلومات
+    $(".tab-pane ul li").each((index, element) => {
+      const chapterNum = $(element).find(".ch-num").text().trim();
+      const chapterLink = $(element).find("a").attr("href").split("/")[4];
+      const chapterDate = $(element).find(".ch-post-time").text().trim();
 
       chaptersList.push({
         chapterNum,
@@ -133,27 +134,34 @@ app.get("/chapters/:link", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-app.get("/images/:link", async (req, res) => {
-  let browser;
+// عرض الصور باستخدام المسار /images/link
+app.get("/images/:link/:page", async (req, res) => {
   try {
     const link = req.params.link;
-    browser = await launchBrowser();
-    const page = await browser.newPage();
+    const pg = req.params.page;
 
-    await page.goto(`https://mangatak.com/${link}`, { timeout: 60000 });
-    const imageUrls = await getImageUrls(page);
+    const response = await axios.get(
+      `https://rocks-manga.com/manga/${link}/${pg}`,
+      {
+        timeout: 60000,
+      }
+    );
+
+    const $ = cheerio.load(response.data);
+    const imageUrls = [];
+
+    $(".reading-content img").each((index, element) => {
+      const src = $(element).attr("src").trim(); // تنظيف الرابط
+      imageUrls.push(src);
+    });
 
     res.json(imageUrls);
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  } finally {
-    await closeBrowser(browser);
+    res.status(500).send("Internal Server Error", error);
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Server is running....");
 });
