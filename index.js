@@ -119,7 +119,7 @@ app.get("/chapters/:link", async (req, res) => {
     $(".tab-pane ul li").each((index, element) => {
       const chapterNum = $(element).find(".ch-num").text().trim();
       const chapterLink = $(element).find("a").attr("href").split("/")[4];
-      const chapterDate = $(element).find(".ch-post-time").text().trim();
+      const chapterDate = $(element).find(".ch-post-time i").text().trim();
 
       chaptersList.push({
         chapterNum,
