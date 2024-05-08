@@ -87,11 +87,10 @@ app.get("/details/:link", async (req, res) => {
       });
 
     // استخراج سنة الصدور
-    const releaseYearElement = $(".section-3 .content").eq(3);
+    const releaseYearElement = $(".section-3 .content").eq(4);
     mangaDetails.releaseYear = releaseYearElement.text().trim();
 
-    // استخراج فرق الترجمة
-    const translationTeamsElement = $(".section-3 .content").eq(4);
+
     mangaDetails.translationTeams = translationTeamsElement.text().trim();
 
     res.json(mangaDetails);
@@ -119,7 +118,7 @@ app.get("/chapters/:link", async (req, res) => {
     $(".tab-pane ul li").each((index, element) => {
       const chapterNum = $(element).find(".ch-num").text().trim();
       const chapterLink = $(element).find("a").attr("href").split("/")[4];
-      const chapterDate = $(element).find(".ch-post-time i").text();
+      const chapterDate = $(element).find(".ch-post-time i").text().trim();
 
       chaptersList.push({
         chapterNum,
